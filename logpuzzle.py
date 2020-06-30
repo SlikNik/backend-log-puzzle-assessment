@@ -12,12 +12,19 @@ Here's what a puzzle URL looks like (spread out onto multiple lines):
 10.254.254.28 - - [06/Aug/2007:00:13:48 -0700] "GET /~foo/puzzle-bar-aaab.jpg
 HTTP/1.0" 302 528 "-" "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US;
 rv:1.8.1.6) Gecko/20070725 Firefox/2.0.0.6"
+
+Resources: #after-hours-work
+Group: Lori and Chris Warren
 """
 
 import os
 import re
+from collections import Counter
 import sys
-import urllib.request
+if sys.version_info[0] >= 3:
+    from urllib.request import urlretrieve
+else:
+    from urllib.request import urlretrieve
 import argparse
 
 
@@ -26,9 +33,25 @@ def read_urls(filename):
     extracting the hostname from the filename itself, sorting
     alphabetically in increasing order, and screening out duplicates.
     """
-    # +++your code here+++
-    pass
+    prefixes = filename.split("_")
+    host = prefixes[1]
+    url_results = []
+    img_urls = []
+    with open(filename, 'r') as f:
+        urls = f.read().splitlines()
+        urls = list(filter(lambda url: "/puzzle/" in url, urls))
+        for url in urls:
+            url_results += re.findall(r'GET (\S+) HTTP', url)
+    puzzle_urls = Counter(url_results)
+    sorted_puzzle_urls = sorted(puzzle_urls)
+    for url in sorted_puzzle_urls:
+        url = f'https://{host}{url}'
+        img_urls.append(url)
+    # print(*img_urls, sep=('\n'))
+    return img_urls
 
+
+# read_urls("animal_code.google.com")
 
 def download_images(img_urls, dest_dir):
     """Given the URLs already in the correct order, downloads
@@ -38,8 +61,18 @@ def download_images(img_urls, dest_dir):
     to show each local image file.
     Creates the directory if necessary.
     """
-    # +++your code here+++
-    pass
+    if not os.path.isdir(dest_dir):
+        os.makedirs(dest_dir)
+        print("dir created")
+    index_html = "<html><body>"
+    for index, url in enumerate(img_urls):
+        img_name = f"img{str(index)}"
+        print(f'retrieving {url}')
+        urlretrieve(url, f'{dest_dir}/{img_name}')
+        index_html += f"<img src='{img_name}'>"
+    index_html += "</body><html>"
+    with open(f'{dest_dir}/index.html', 'w') as w_index:
+        w_index.write(index_html)
 
 
 def create_parser():
@@ -47,7 +80,8 @@ def create_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--todir',
                         help='destination directory for downloaded images')
-    parser.add_argument('logfile', help='apache logfile to extract urls from')
+    parser.add_argument('logfile',
+                        help='apache logfile to extract urls from')
 
     return parser
 
